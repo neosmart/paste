@@ -1,11 +1,21 @@
 #include <Windows.h>
-#include <stdio.h>
 
-int main()
+int wstrlen(const wchar_t *src)
+{
+	int count = 0;
+	for (const wchar_t *c = src; c != nullptr && *c != '\0'; ++c)
+	{
+		++count;
+	}
+
+	return count;
+}
+
+int main(int argc, const char *argv[])
 {
 	if (!OpenClipboard(nullptr))
 	{
-		return -1;
+		ExitProcess(-1);
 	}
 
 	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
@@ -17,12 +27,16 @@ int main()
 	if (text == nullptr)
 	{
 		CloseClipboard();
-		return -1;
+		ExitProcess(-1);
 	}
 
-	printf("%S", text);
+	DWORD charsWritten = -1;
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	WriteConsoleW(hOut, text, wstrlen(text), &charsWritten, 0);
+	CloseHandle(hOut);
+
 	GlobalUnlock(hData);
 	CloseClipboard();
 
-    return 0;
+	ExitProcess(0);
 }
