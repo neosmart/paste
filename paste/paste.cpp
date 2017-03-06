@@ -1,5 +1,12 @@
 #include <Windows.h>
 
+enum class ExitReason : int
+{
+	Success,
+	ClipboardError,
+	NoTextualData
+};
+
 int wstrlen(const wchar_t *src)
 {
 	int count = 0;
@@ -11,23 +18,43 @@ int wstrlen(const wchar_t *src)
 	return count;
 }
 
+bool ClipboardContainsFormat(UINT format)
+{
+	bool firstTime = true;
+	for (UINT f = 0; firstTime || f != 0; f = EnumClipboardFormats(f))
+	{
+		firstTime = false;
+		if (f == format)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 int main(int argc, const char *argv[])
 {
 	if (!OpenClipboard(nullptr))
 	{
-		ExitProcess(-1);
+		ExitProcess((UINT)ExitReason::ClipboardError);
+	}
+
+	if (!ClipboardContainsFormat(CF_UNICODETEXT))
+	{
+		ExitProcess((UINT)ExitReason::NoTextualData);
 	}
 
 	HANDLE hData = GetClipboardData(CF_UNICODETEXT);
 	if (hData == INVALID_HANDLE_VALUE || hData == nullptr)
 	{
-		return -1;
+		CloseClipboard();
+		ExitProcess((UINT)ExitReason::ClipboardError);
 	}
 	const wchar_t *text = (const wchar_t *) GlobalLock(hData);
 	if (text == nullptr)
 	{
 		CloseClipboard();
-		ExitProcess(-1);
+		ExitProcess((UINT)ExitReason::ClipboardError);
 	}
 
 	DWORD charsWritten = -1;
@@ -38,5 +65,5 @@ int main(int argc, const char *argv[])
 	GlobalUnlock(hData);
 	CloseClipboard();
 
-	ExitProcess(0);
+	ExitProcess((UINT)ExitReason::Success);
 }
