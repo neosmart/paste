@@ -4,18 +4,32 @@ enum class ExitReason : int
 {
 	Success,
 	ClipboardError,
-	NoTextualData
+	NoTextualData,
+	SystemError
 };
 
-int wstrlen(const wchar_t *src)
+template <typename T>
+int strlen(const T *src)
 {
 	int count = 0;
-	for (const wchar_t *c = src; c != nullptr && *c != '\0'; ++c)
+	for (const T *c = src; c != nullptr && *c != static_cast<T>(0); ++c)
 	{
 		++count;
 	}
 
 	return count;
+}
+
+void WriteError(const char *error)
+{
+	HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
+	if (hErr == INVALID_HANDLE_VALUE || hErr == nullptr)
+	{
+		ExitProcess((UINT)ExitReason::SystemError);
+	}
+	DWORD charsWritten = -1;
+	WriteConsoleA(hErr, error, strlen(error), &charsWritten, 0);
+	CloseHandle(hErr);
 }
 
 bool ClipboardContainsFormat(UINT format)
@@ -36,11 +50,14 @@ int main(int argc, const char *argv[])
 {
 	if (!OpenClipboard(nullptr))
 	{
+		WriteError("Failed to open system clipboard!\n");
 		ExitProcess((UINT)ExitReason::ClipboardError);
 	}
 
 	if (!ClipboardContainsFormat(CF_UNICODETEXT))
 	{
+		CloseClipboard();
+		WriteError("Clipboard contains non-text data!\n");
 		ExitProcess((UINT)ExitReason::NoTextualData);
 	}
 
@@ -48,18 +65,20 @@ int main(int argc, const char *argv[])
 	if (hData == INVALID_HANDLE_VALUE || hData == nullptr)
 	{
 		CloseClipboard();
+		WriteError("Unable to get clipboard data!\n");
 		ExitProcess((UINT)ExitReason::ClipboardError);
 	}
 	const wchar_t *text = (const wchar_t *) GlobalLock(hData);
 	if (text == nullptr)
 	{
 		CloseClipboard();
+		WriteError("Unable to get clipboard data!\n");
 		ExitProcess((UINT)ExitReason::ClipboardError);
 	}
 
 	DWORD charsWritten = -1;
 	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	WriteConsoleW(hOut, text, wstrlen(text), &charsWritten, 0);
+	WriteConsoleW(hOut, text, strlen(text), &charsWritten, 0);
 	CloseHandle(hOut);
 
 	GlobalUnlock(hData);
