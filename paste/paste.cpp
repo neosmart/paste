@@ -71,7 +71,6 @@ int main(int argc, const char *argv[])
 	const wchar_t *text = (const wchar_t *) GlobalLock(hData);
 	if (text == nullptr)
 	{
-		CloseHandle(hData);
 		CloseClipboard();
 		WriteError("Unable to get clipboard data!\n");
 		ExitProcess((UINT)ExitReason::ClipboardError);
@@ -83,7 +82,6 @@ int main(int argc, const char *argv[])
 	CloseHandle(hOut);
 
 	GlobalUnlock(hData);
-	CloseHandle(hData);
 	CloseClipboard();
 
 	ExitProcess((UINT)ExitReason::Success);
