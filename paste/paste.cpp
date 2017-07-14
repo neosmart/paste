@@ -8,6 +8,42 @@ enum class ExitReason : int
 	SystemError
 };
 
+enum class LineEnding : int
+{
+	AsIs,
+	CrLf,
+	Lf
+};
+
+void Write(const wchar_t *text, DWORD length = -1)
+{
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hOut == INVALID_HANDLE_VALUE || hOut == nullptr)
+	{
+		ExitProcess((UINT)ExitReason::SystemError);
+	}
+	DWORD charsWritten = -1;
+	WriteConsoleW(hOut, text, length != -1 ? length : lstrlen(text), &charsWritten, 0);
+	CloseHandle(hOut);
+}
+
+void Write(const char *text, DWORD length = -1)
+{
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	if (hOut == INVALID_HANDLE_VALUE || hOut == nullptr)
+	{
+		ExitProcess((UINT)ExitReason::SystemError);
+	}
+	DWORD charsWritten = -1;
+	WriteConsoleA(hOut, text, length != -1 ? length : lstrlenA(text), &charsWritten, 0);
+	CloseHandle(hOut);
+}
+
+void Write(const wchar_t text)
+{
+	return Write(&text, 1);
+}
+
 void WriteError(const wchar_t *error)
 {
 	HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
@@ -34,8 +70,57 @@ bool ClipboardContainsFormat(UINT format)
 	return false;
 }
 
-int main(int argc, const char *argv[])
+void print(const WCHAR *text, LineEnding lineEnding)
 {
+	DWORD charsWritten = -1;
+	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	switch (lineEnding)
+	{
+	case LineEnding::AsIs:
+		WriteConsoleW(hOut, text, lstrlen(text), &charsWritten, nullptr);
+		break;
+	case LineEnding::Lf:
+		for (auto ptr = text; ptr && *ptr; ++ptr)
+		{
+			if (*ptr != '\r')
+			{
+				WriteConsoleW(hOut, ptr, 1, &charsWritten, nullptr);
+			}
+		}
+		break;
+	case LineEnding::CrLf:
+		for (auto ptr = text; ptr && *ptr; ++ptr)
+		{
+			if (*ptr == '\n' && (ptr == text || *(ptr -1) != '\r'))
+			{
+				WriteConsoleW(hOut, L"\r", 1, &charsWritten, nullptr);
+			}
+			WriteConsoleW(hOut, ptr, 1, &charsWritten, nullptr);
+		}
+		break;
+	}
+	CloseHandle(hOut);
+}
+
+int wmain(int argc, const WCHAR *argv[], const WCHAR *envp[])
+{
+	LineEnding lineEnding = LineEnding::AsIs;
+	Write(L"wstring");
+	Write("string");
+
+	if (argc == 2)
+	{
+		if (lstrcmpi(argv[1], L"--lf") == 0)
+		{
+			lineEnding = LineEnding::Lf;
+		}
+		else if (lstrcmpi(argv[1], L"--crlf") == 0)
+		{
+			lineEnding = LineEnding::CrLf;
+		}
+	}
+
 	if (!OpenClipboard(nullptr))
 	{
 		WriteError(L"Failed to open system clipboard!\n");
@@ -65,10 +150,7 @@ int main(int argc, const char *argv[])
 		ExitProcess((UINT)ExitReason::ClipboardError);
 	}
 
-	DWORD charsWritten = -1;
-	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	WriteConsoleW(hOut, text, lstrlen(text), &charsWritten, 0);
-	CloseHandle(hOut);
+	print(text, lineEnding);
 
 	GlobalUnlock(hData);
 	CloseClipboard();
