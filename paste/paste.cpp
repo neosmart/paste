@@ -15,45 +15,65 @@ enum class LineEnding : int
 	Lf
 };
 
-void Write(const wchar_t *text, DWORD length = -1)
+template<typename T>
+T* _malloc(DWORD count)
 {
-	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+	DWORD bytes = sizeof(T) * count;
+	return (T*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytes);
+}
+
+template<typename T>
+void _free(T *obj)
+{
+	HeapFree(GetProcessHeap(), 0, obj);
+}
+
+void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD length = -1)
+{
+	length = length != -1 ? length : lstrlen(text);
+
+	HANDLE hOut = GetStdHandle(outputHandle);
 	if (hOut == INVALID_HANDLE_VALUE || hOut == nullptr)
 	{
-		ExitProcess((UINT)ExitReason::SystemError);
+		ExitProcess((UINT)-1);
 	}
-	DWORD charsWritten = -1;
-	WriteConsoleW(hOut, text, length != -1 ? length : lstrlen(text), &charsWritten, 0);
-	CloseHandle(hOut);
-}
+	DWORD consoleMode;
+	bool isConsole = GetConsoleMode(hOut, &consoleMode) != 0;
 
-void Write(const char *text, DWORD length = -1)
-{
-	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (hOut == INVALID_HANDLE_VALUE || hOut == nullptr)
+	DWORD result = 0;
+	DWORD charsWritten = -1;
+	if (isConsole)
 	{
-		ExitProcess((UINT)ExitReason::SystemError);
+		result = WriteConsoleW(hOut, text, length, &charsWritten, nullptr);
 	}
-	DWORD charsWritten = -1;
-	WriteConsoleA(hOut, text, length != -1 ? length : lstrlenA(text), &charsWritten, 0);
-	CloseHandle(hOut);
-}
-
-void Write(const wchar_t text)
-{
-	return Write(&text, 1);
-}
-
-void WriteError(const wchar_t *error)
-{
-	HANDLE hErr = GetStdHandle(STD_ERROR_HANDLE);
-	if (hErr == INVALID_HANDLE_VALUE || hErr == nullptr)
+	else
 	{
-		ExitProcess((UINT)ExitReason::SystemError);
+		//WSL fakes the console, and requires UTF8 output
+		DWORD utf8ByteCount = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, length + 1, nullptr, 0, nullptr, nullptr); //include null
+		auto utf8Bytes = _malloc<char>(utf8ByteCount);
+		WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, utf8Bytes, utf8ByteCount, nullptr, nullptr);
+		result = WriteFile(hOut, utf8Bytes, utf8ByteCount - 1 /* remove null */, &charsWritten, nullptr);
+		if (charsWritten != utf8ByteCount - 1)
+		{
+			ExitProcess(GetLastError());
+		}
+		_free(utf8Bytes);
 	}
-	DWORD charsWritten = -1;
-	WriteConsole(hErr, error, lstrlen(error), &charsWritten, 0);
-	CloseHandle(hErr);
+
+	if (result == 0)
+	{
+		ExitProcess((UINT)GetLastError());
+	}
+}
+
+void Write(const wchar_t text, DWORD outputHandle = STD_OUTPUT_HANDLE)
+{
+	return Write(&text, outputHandle, 1);
+}
+
+void WriteError(const wchar_t *text)
+{
+	return Write(text, STD_ERROR_HANDLE);
 }
 
 bool ClipboardContainsFormat(UINT format)
@@ -72,42 +92,38 @@ bool ClipboardContainsFormat(UINT format)
 
 void print(const WCHAR *text, LineEnding lineEnding)
 {
-	DWORD charsWritten = -1;
-	HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-
 	switch (lineEnding)
 	{
 	case LineEnding::AsIs:
-		WriteConsoleW(hOut, text, lstrlen(text), &charsWritten, nullptr);
+		Write(text);
 		break;
 	case LineEnding::Lf:
 		for (auto ptr = text; ptr && *ptr; ++ptr)
 		{
-			if (*ptr != '\r')
+			if (*ptr != L'\r')
 			{
-				WriteConsoleW(hOut, ptr, 1, &charsWritten, nullptr);
+				Write(ptr, STD_OUTPUT_HANDLE, 1);
 			}
 		}
 		break;
 	case LineEnding::CrLf:
 		for (auto ptr = text; ptr && *ptr; ++ptr)
 		{
-			if (*ptr == '\n' && (ptr == text || *(ptr -1) != '\r'))
+			if (*ptr == L'\n' && (ptr == text || *(ptr -1) != L'\r'))
 			{
-				WriteConsoleW(hOut, L"\r", 1, &charsWritten, nullptr);
+				Write(L"\r", STD_OUTPUT_HANDLE, 1);
 			}
-			WriteConsoleW(hOut, ptr, 1, &charsWritten, nullptr);
+			Write(ptr, STD_OUTPUT_HANDLE, 1);
 		}
 		break;
 	}
-	CloseHandle(hOut);
 }
 
-int wmain(int argc, const WCHAR *argv[], const WCHAR *envp[])
+int wmain(void)
 {
+	int argc;
+	LPWSTR *argv = CommandLineToArgvW(GetCommandLine(), &argc);
 	LineEnding lineEnding = LineEnding::AsIs;
-	Write(L"wstring");
-	Write("string");
 
 	if (argc == 2)
 	{
