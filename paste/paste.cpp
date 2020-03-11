@@ -1,7 +1,7 @@
 #include <Windows.h>
 
 // The maximum number of chars to buffer before issuing a write
-#define MAX_CHAR_BUFFER 128
+#define MAX_BUF 1024
 
 enum class ExitReason : int
 {
@@ -95,48 +95,28 @@ bool ClipboardContainsFormat(UINT format)
 
 void print(const WCHAR *text, LineEnding lineEnding)
 {
-	int chars = 0;
-	const WCHAR* start = text;
-	switch (lineEnding)
-	{
-	case LineEnding::AsIs:
-		Write(text);
-		break;
-	case LineEnding::Lf:
-		for (auto *ptr = text; ptr && *ptr; ++ptr, ++chars)
-		{
-			if (*ptr == L'\r')
-			{
-				Write(start, STD_OUTPUT_HANDLE, ptr - start);
-				start = ptr + 1;
-			}
-			else if (chars == MAX_CHAR_BUFFER)
-			{
-				Write(start, STD_OUTPUT_HANDLE, ptr - start);
-				start = ptr;
-				chars = 0;
-			}
-		}
-		Write(start, STD_OUTPUT_HANDLE);
-		break;
-	case LineEnding::CrLf:
-		for (auto ptr = text; ptr && *ptr; ++ptr, ++chars)
-		{
-			if (*ptr == L'\n' && (ptr == text || *(ptr -1) != L'\r'))
-			{
-				Write(start, STD_OUTPUT_HANDLE, ptr - start);
-				Write(L"\r", STD_OUTPUT_HANDLE, 1);
-			}
-			else if (chars == MAX_CHAR_BUFFER)
-			{
-				Write(start, STD_OUTPUT_HANDLE, ptr - start);
-				start = ptr;
-				chars = 0;
-			}
-		}
-		Write(start, STD_OUTPUT_HANDLE);
-		break;
+	if (lineEnding == LineEnding::AsIs) {
+		return Write(text);
 	}
+
+	WCHAR buf[MAX_BUF];
+	auto i = 0;
+	for (auto *ptr = text; ptr && *ptr; ++ptr)
+	{
+		if (lineEnding == LineEnding::Lf && *ptr == L'\r') {
+			continue;
+		}
+		else if (lineEnding == LineEnding::CrLf
+			&& (i == 0 || buf[i-1] != '\r') && *ptr == '\n') {
+			buf[i++] = '\r';
+		}
+		buf[i++] = *ptr;
+		if (i == MAX_BUF) {
+			Write(buf, STD_OUTPUT_HANDLE, i);
+			i = 0;
+		}
+	}
+	Write(buf, STD_OUTPUT_HANDLE, i);
 }
 
 int wmain(void)
