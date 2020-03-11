@@ -106,10 +106,6 @@ bool ClipboardContainsFormat(UINT format)
 
 void print(const WCHAR *text, LineEnding lineEnding)
 {
-	if (lineEnding == LineEnding::AsIs) {
-		return Write(text);
-	}
-
 	WCHAR buf[MAX_BUF];
 	auto i = 0;
 	for (auto *ptr = text; ptr && *ptr; ++ptr)
