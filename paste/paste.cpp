@@ -5,6 +5,11 @@
 
 HANDLE _processHeap;
 
+struct Utf8Buffer {
+	char *Buffer;
+	DWORD Length;
+} _utf8Buffer;
+
 enum class ExitReason : int
 {
 	Success,
@@ -29,9 +34,16 @@ T* _malloc(DWORD count)
 }
 
 template<typename T>
-void _free(T *obj)
+T* _realloc(T *ptr, DWORD count)
 {
-	HeapFree(_processHeap, 0, obj);
+	DWORD bytes = sizeof(T) * count;
+	return (T*)HeapReAlloc(_processHeap, HEAP_ZERO_MEMORY, ptr, bytes);
+}
+
+template<typename T>
+void _free(T *ptr)
+{
+	HeapFree(_processHeap, 0, ptr);
 }
 
 int WINAPI CtrlHandler(DWORD ctrlType) {
@@ -69,15 +81,32 @@ void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD ch
 	else
 	{
 		// WSL fakes the console and requires UTF-8 output
+
+		// WideCharToMultiByte does not support chunking in case of fixed output buffer size. It assumes you can dynamically
+		// allocate memory and expects you to call it with a fixed output buffer size of 0 and a nullptr to get back the
+		// number of bytes required to fit the conversion, which you will then dynamically allocate.
+		// While it *does* stream its output and abort only when there's insufficient room left in the provided buffer, it
+		// does not report back how many source characters were consumed by the operation so it's impossible to figure out
+		// what to pass in as the starting point for a subsequent continuation call to WideCharToMultiByte().
+		// Realistically, the only recourse would be to check beforehand if the needed size exceeds the capacity of a fixed-
+		// length buffer, then test different lengths of input to see what *would* fit in the buffer in each go. Or just
+		// use a dynamically allocated buffer.
 		DWORD utf8ByteCount = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars, nullptr, 0, nullptr, nullptr);
-		auto utf8Bytes = _malloc<char>(utf8ByteCount);
-		WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, utf8Bytes, utf8ByteCount, nullptr, nullptr);
-		result = WriteFile(hOut, utf8Bytes, utf8ByteCount, &charsWritten, nullptr);
+		if (_utf8Buffer.Buffer == nullptr) {
+			_utf8Buffer.Buffer = _malloc<char>(utf8ByteCount);
+			_utf8Buffer.Length = utf8ByteCount;
+		}
+		else if (_utf8Buffer.Length < utf8ByteCount) {
+			_utf8Buffer.Buffer = _realloc<char>(_utf8Buffer.Buffer, utf8ByteCount);
+			_utf8Buffer.Length = utf8ByteCount;
+		}
+		// "WideCharToMultiByte function operates most efficiently when both lpDefaultChar and lpUsedDefaultChar are set to NULL."
+		int bytesConverted = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars, _utf8Buffer.Buffer, _utf8Buffer.Length, nullptr, nullptr);
+		result = WriteFile(hOut, _utf8Buffer.Buffer, _utf8Buffer.Length, &charsWritten, nullptr);
 		if (charsWritten != utf8ByteCount)
 		{
 			ExitProcess(GetLastError());
 		}
-		_free(utf8Bytes);
 	}
 
 	if (result == 0)
@@ -135,6 +164,8 @@ void print(const WCHAR *text, LineEnding lineEnding)
 int wmain(void)
 {
 	_processHeap = GetProcessHeap();
+	_utf8Buffer = {};
+
 	SetConsoleCtrlHandler(CtrlHandler, true);
 
 	int argc;
