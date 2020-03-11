@@ -8,7 +8,8 @@ enum class ExitReason : int
 	Success,
 	ClipboardError,
 	NoTextualData,
-	SystemError
+	SystemError,
+	CtrlC,
 };
 
 enum class LineEnding : int
@@ -29,6 +30,16 @@ template<typename T>
 void _free(T *obj)
 {
 	HeapFree(GetProcessHeap(), 0, obj);
+}
+
+int WINAPI CtrlHandler(DWORD ctrlType) {
+	switch (ctrlType) {
+	case CTRL_C_EVENT:
+		ExitProcess((UINT)ExitReason::CtrlC);
+	default:
+		return false;
+	}
+	return true;
 }
 
 void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD chars = -1)
@@ -121,6 +132,8 @@ void print(const WCHAR *text, LineEnding lineEnding)
 
 int wmain(void)
 {
+	SetConsoleCtrlHandler(CtrlHandler, true);
+
 	int argc;
 	LPWSTR *argv = CommandLineToArgvW(GetCommandLine(), &argc);
 	LineEnding lineEnding = LineEnding::AsIs;
