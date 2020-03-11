@@ -3,6 +3,8 @@
 // The maximum number of chars to buffer before issuing a write
 #define MAX_BUF 1024
 
+HANDLE _processHeap;
+
 enum class ExitReason : int
 {
 	Success,
@@ -23,13 +25,13 @@ template<typename T>
 T* _malloc(DWORD count)
 {
 	DWORD bytes = sizeof(T) * count;
-	return (T*)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, bytes);
+	return (T*)HeapAlloc(_processHeap, HEAP_ZERO_MEMORY, bytes);
 }
 
 template<typename T>
 void _free(T *obj)
 {
-	HeapFree(GetProcessHeap(), 0, obj);
+	HeapFree(_processHeap, 0, obj);
 }
 
 int WINAPI CtrlHandler(DWORD ctrlType) {
@@ -128,6 +130,7 @@ void print(const WCHAR *text, LineEnding lineEnding)
 
 int wmain(void)
 {
+	_processHeap = GetProcessHeap();
 	SetConsoleCtrlHandler(CtrlHandler, true);
 
 	int argc;
