@@ -182,6 +182,15 @@ int wmain(void)
 		{
 			lineEnding = LineEnding::CrLf;
 		}
+		else if (lstrcmpi(argv[1], L"--help") == 0 || lstrcmpi(argv[1], L"-h") == 0
+			|| lstrcmpi(argv[1], L"/?") == 0 || lstrcmpi(argv[1], L"/help") == 0
+			|| lstrcmpi(argv[1], L"/h") == 0)
+		{
+			Write(L"paste.exe by NeoSmart Technologies\n");
+			Write(L"https://github.com/neosmart/paste\n\n");
+			Write(L"USAGE: paste.exe [--lf|--crlf|--help]\n");
+			ExitProcess(0);
+		}
 	}
 
 	if (!OpenClipboard(nullptr))
