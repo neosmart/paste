@@ -1,5 +1,8 @@
 #include <Windows.h>
 
+// The maximum number of chars to buffer before issuing a write
+#define MAX_CHAR_BUFFER 128
+
 enum class ExitReason : int
 {
 	Success,
@@ -92,6 +95,7 @@ bool ClipboardContainsFormat(UINT format)
 
 void print(const WCHAR *text, LineEnding lineEnding)
 {
+	int chars = 0;
 	const WCHAR* start = text;
 	switch (lineEnding)
 	{
@@ -99,23 +103,35 @@ void print(const WCHAR *text, LineEnding lineEnding)
 		Write(text);
 		break;
 	case LineEnding::Lf:
-		for (auto *ptr = text; ptr && *ptr; ++ptr)
+		for (auto *ptr = text; ptr && *ptr; ++ptr, ++chars)
 		{
 			if (*ptr == L'\r')
 			{
 				Write(start, STD_OUTPUT_HANDLE, ptr - start);
 				start = ptr + 1;
 			}
+			else if (chars == MAX_CHAR_BUFFER)
+			{
+				Write(start, STD_OUTPUT_HANDLE, ptr - start);
+				start = ptr;
+				chars = 0;
+			}
 		}
 		Write(start, STD_OUTPUT_HANDLE);
 		break;
 	case LineEnding::CrLf:
-		for (auto ptr = text; ptr && *ptr; ++ptr)
+		for (auto ptr = text; ptr && *ptr; ++ptr, ++chars)
 		{
 			if (*ptr == L'\n' && (ptr == text || *(ptr -1) != L'\r'))
 			{
 				Write(start, STD_OUTPUT_HANDLE, ptr - start);
 				Write(L"\r", STD_OUTPUT_HANDLE, 1);
+			}
+			else if (chars == MAX_CHAR_BUFFER)
+			{
+				Write(start, STD_OUTPUT_HANDLE, ptr - start);
+				start = ptr;
+				chars = 0;
 			}
 		}
 		Write(start, STD_OUTPUT_HANDLE);
