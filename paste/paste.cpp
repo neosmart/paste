@@ -28,9 +28,9 @@ void _free(T *obj)
 	HeapFree(GetProcessHeap(), 0, obj);
 }
 
-void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD length = -1)
+void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD chars = -1)
 {
-	length = length != -1 ? length : lstrlen(text);
+	chars = chars != -1 ? chars : lstrlen(text);
 
 	HANDLE hOut = GetStdHandle(outputHandle);
 	if (hOut == INVALID_HANDLE_VALUE || hOut == nullptr)
@@ -44,12 +44,12 @@ void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD le
 	DWORD charsWritten = -1;
 	if (isConsole)
 	{
-		result = WriteConsoleW(hOut, text, length, &charsWritten, nullptr);
+		result = WriteConsoleW(hOut, text, chars, &charsWritten, nullptr);
 	}
 	else
 	{
-		//WSL fakes the console, and requires UTF8 output
-		DWORD utf8ByteCount = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, length + 1, nullptr, 0, nullptr, nullptr); //include null
+		// WSL fakes the console and requires UTF-8 output
+		DWORD utf8ByteCount = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars + 1, nullptr, 0, nullptr, nullptr); // include null
 		auto utf8Bytes = _malloc<char>(utf8ByteCount);
 		WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, utf8Bytes, utf8ByteCount, nullptr, nullptr);
 		result = WriteFile(hOut, utf8Bytes, utf8ByteCount - 1 /* remove null */, &charsWritten, nullptr);
@@ -92,29 +92,33 @@ bool ClipboardContainsFormat(UINT format)
 
 void print(const WCHAR *text, LineEnding lineEnding)
 {
+	const WCHAR* start = text;
 	switch (lineEnding)
 	{
 	case LineEnding::AsIs:
 		Write(text);
 		break;
 	case LineEnding::Lf:
-		for (auto ptr = text; ptr && *ptr; ++ptr)
+		for (auto *ptr = text; ptr && *ptr; ++ptr)
 		{
-			if (*ptr != L'\r')
+			if (*ptr == L'\r')
 			{
-				Write(ptr, STD_OUTPUT_HANDLE, 1);
+				Write(start, STD_OUTPUT_HANDLE, ptr - start);
+				start = ptr + 1;
 			}
 		}
+		Write(start, STD_OUTPUT_HANDLE);
 		break;
 	case LineEnding::CrLf:
 		for (auto ptr = text; ptr && *ptr; ++ptr)
 		{
 			if (*ptr == L'\n' && (ptr == text || *(ptr -1) != L'\r'))
 			{
+				Write(start, STD_OUTPUT_HANDLE, ptr - start);
 				Write(L"\r", STD_OUTPUT_HANDLE, 1);
 			}
-			Write(ptr, STD_OUTPUT_HANDLE, 1);
 		}
+		Write(start, STD_OUTPUT_HANDLE);
 		break;
 	}
 }
