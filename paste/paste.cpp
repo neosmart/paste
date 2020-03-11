@@ -65,11 +65,11 @@ void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD ch
 	else
 	{
 		// WSL fakes the console and requires UTF-8 output
-		DWORD utf8ByteCount = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars + 1, nullptr, 0, nullptr, nullptr); // include null
+		DWORD utf8ByteCount = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars, nullptr, 0, nullptr, nullptr);
 		auto utf8Bytes = _malloc<char>(utf8ByteCount);
 		WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, -1, utf8Bytes, utf8ByteCount, nullptr, nullptr);
-		result = WriteFile(hOut, utf8Bytes, utf8ByteCount - 1 /* remove null */, &charsWritten, nullptr);
-		if (charsWritten != utf8ByteCount - 1)
+		result = WriteFile(hOut, utf8Bytes, utf8ByteCount, &charsWritten, nullptr);
+		if (charsWritten != utf8ByteCount)
 		{
 			ExitProcess(GetLastError());
 		}
