@@ -101,8 +101,8 @@ void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD ch
 			_utf8Buffer.Length = utf8ByteCount;
 		}
 		// "WideCharToMultiByte function operates most efficiently when both lpDefaultChar and lpUsedDefaultChar are set to NULL."
-		int bytesConverted = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars, _utf8Buffer.Buffer, _utf8Buffer.Length, nullptr, nullptr);
-		result = WriteFile(hOut, _utf8Buffer.Buffer, _utf8Buffer.Length, &charsWritten, nullptr);
+		DWORD bytesConverted = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, text, chars, _utf8Buffer.Buffer, _utf8Buffer.Length, nullptr, nullptr);
+		result = WriteFile(hOut, _utf8Buffer.Buffer, bytesConverted, &charsWritten, nullptr);
 		if (charsWritten != utf8ByteCount)
 		{
 			ExitProcess(GetLastError());
