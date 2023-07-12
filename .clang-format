@@ -1,0 +1,56 @@
+AccessModifierOffset: -4
+AlignConsecutiveAssignments: false
+AlignTrailingComments: false
+AlignOperands: true
+AlwaysBreakTemplateDeclarations: true
+AllowAllArgumentsOnNextLine: true
+AllowAllConstructorInitializersOnNextLine: true
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortEnumsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLambdasOnASingleLine: Inline
+AllowShortLoopsOnASingleLine: false
+BinPackArguments: true
+BinPackParameters: true
+BreakBeforeBinaryOperators: NonAssignment
+BreakBeforeBraces: Stroustrup
+BreakConstructorInitializers: AfterColon
+ColumnLimit: 100
+ContinuationIndentWidth: 4
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+Cpp11BracedListStyle: false
+DerivePointerAlignment: false
+ExperimentalAutoDetectBinPacking: true
+IndentCaseLabels: true
+IndentPPDirectives: None
+IndentWidth: 4
+Language: Cpp
+MaxEmptyLinesToKeep: 1
+NamespaceIndentation: All
+PointerAlignment: Right
+ReflowComments: true
+SortIncludes: false
+SortUsingDeclarations: true
+SpaceAfterCStyleCast: true
+SpaceAfterLogicalNot: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeInheritanceColon: true
+SpaceBeforeParens: ControlStatements
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceInEmptyParentheses: false
+SpacesInCStyleCastParentheses: false
+SpacesInSquareBrackets: false
+Standard: Cpp11
+TabWidth: 4
+
+# We can't both use tabs and align continuations
+UseTab: Never
+AlignAfterOpenBracket: Align
+# AlignAfterOpenBracket: AlwaysBreak # DontAlign + new line
+
+# AlignAfterOpenBracket: Align
+# UseTab: Never
