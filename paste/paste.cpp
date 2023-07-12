@@ -111,7 +111,7 @@ void Write(const wchar_t *text, DWORD outputHandle = STD_OUTPUT_HANDLE, DWORD ch
                                                    nullptr);
         result = WriteFile(hOut, _utf8Buffer.Buffer, bytesConverted, &charsWritten, nullptr);
         if (charsWritten != utf8ByteCount) {
-            ExitProcess(GetLastError());
+            ExitProcess((UINT) GetLastError());
         }
     }
 
